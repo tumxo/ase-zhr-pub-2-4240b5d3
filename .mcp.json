@@ -10,9 +10,7 @@
       "args": [
         "@playwright/mcp@latest",
         "--no-sandbox",
-        "--isolated",
-        "--executable-path",
-        "/opt/playwright-browsers/chromium-1208/chrome-linux64/chrome"
+        "--isolated"
       ],
       "env": {}
     }
