@@ -35,12 +35,14 @@ Jedes Szenario folgt dem Schema:
 
 ## QS-3: Zugriffskontrolle und Datensicherheit
 
+> **Hinweis Prototyp:** Dieses Szenario beschreibt die Zielarchitektur für Produktion. Im Prototypen wird bewusst Basic-Auth ohne Passwörter eingesetzt (siehe [ADR-003](./adrs/ADR-003-basic-auth-statt-okta.md) und [technische-schulden.md](./technische-schulden.md)).
+
 | Attribut | Beschreibung |
 |----------|-------------|
 | **Umgebung** | Normaler Betrieb, sowohl über das Internet als auch aus dem INNOQ-Netzwerk |
 | **Auslöser** | Unauthentifizierter Nutzer oder INNOQ-Mitarbeiter |
 | **Ereignis** | Versucht auf geschützte Ressourcen zuzugreifen (eigene oder fremde Buchungen, API-Endpunkte) |
-| **Artefakt** | Calvin API und Web-Frontend |
+| **Artefakt** | Calvin API und Web-Frontend (Zielarchitektur: Okta OAuth2/OIDC) |
 | **Reaktion** | Unauthentifizierte Anfragen werden sofort abgewiesen; authentifizierte Mitarbeiter sehen ausschließlich ihre eigenen Buchungen |
 | **Maßnahme** | 100 % der unauthentifizierten Anfragen erhalten HTTP 401; kein Zugriff auf Buchungsdaten anderer Mitarbeiter möglich |
 
