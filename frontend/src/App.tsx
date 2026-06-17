@@ -4,6 +4,7 @@ import { BuchenPage } from "@/pages/buchen"
 import { MeineBuchungenPage } from "@/pages/meine-buchungen"
 import { BuchungDetailPage } from "@/pages/buchung-detail"
 import { KalenderPage } from "@/pages/kalender"
+import { StatusPage } from "@/pages/status"
 
 function App() {
   return (
@@ -14,6 +15,7 @@ function App() {
         <Route path="/buchungen" element={<MeineBuchungenPage />} />
         <Route path="/buchungen/:id" element={<BuchungDetailPage />} />
         <Route path="/kalender" element={<KalenderPage />} />
+        <Route path="/status" element={<StatusPage />} />
       </Route>
     </Routes>
   )

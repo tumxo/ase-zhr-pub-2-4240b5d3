@@ -1,5 +1,5 @@
 import { NavLink, useLocation } from "react-router-dom"
-import { Building2, CalendarPlus, CalendarCheck, CalendarDays } from "lucide-react"
+import { Building2, CalendarPlus, CalendarCheck, CalendarDays, Activity } from "lucide-react"
 import {
   Sidebar,
   SidebarContent,
@@ -18,6 +18,7 @@ const NAV_ITEMS = [
   { title: "Buchen", url: "/buchen", icon: CalendarPlus },
   { title: "Meine Buchungen", url: "/buchungen", icon: CalendarCheck },
   { title: "Kalender", url: "/kalender", icon: CalendarDays },
+  { title: "Status", url: "/status", icon: Activity },
 ]
 
 export function AppSidebar() {
