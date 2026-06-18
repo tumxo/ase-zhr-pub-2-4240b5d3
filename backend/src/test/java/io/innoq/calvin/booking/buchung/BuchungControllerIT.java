@@ -251,4 +251,117 @@ class BuchungControllerIT {
         .perform(get("/api/buchungen/" + id).with(httpBasic(ALEX, "egal")))
         .andExpect(status().isNotFound());
   }
+
+  @Test
+  void fremde_buchung_stornieren_liefert_404() throws Exception {
+    // alex.berger legt eine Buchung an.
+    String id =
+        com.jayway.jsonpath.JsonPath.read(
+            mvc()
+                .perform(
+                    post("/api/buchungen")
+                        .with(httpBasic(ALEX, "egal"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body("koeln-r8", MORGEN, "11:00", "12:00", "Alexens Termin")))
+                .andReturn()
+                .getResponse()
+                .getContentAsString(),
+            "$.id");
+
+    // jana.schmidt versucht, Alexens Buchung zu stornieren -> 404.
+    mvc()
+        .perform(delete("/api/buchungen/" + id).with(httpBasic("jana.schmidt", "egal")))
+        .andExpect(status().isNotFound());
+  }
+
+  @Test
+  void fremde_buchung_aendern_liefert_404() throws Exception {
+    // alex.berger legt eine Buchung an.
+    String id =
+        com.jayway.jsonpath.JsonPath.read(
+            mvc()
+                .perform(
+                    post("/api/buchungen")
+                        .with(httpBasic(ALEX, "egal"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body("koeln-r9", MORGEN, "13:00", "14:00", "Alexens Meeting")))
+                .andReturn()
+                .getResponse()
+                .getContentAsString(),
+            "$.id");
+
+    // jana.schmidt versucht, Alexens Buchung zu ändern -> 404.
+    mvc()
+        .perform(
+            put("/api/buchungen/" + id)
+                .with(httpBasic("jana.schmidt", "egal"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body("koeln-r9", MORGEN, "15:00", "16:00", "Umbenannt")))
+        .andExpect(status().isNotFound());
+  }
+
+  @Test
+  void nicht_vorhandene_buchung_liefert_404() throws Exception {
+    mvc()
+        .perform(get("/api/buchungen/nichtvorhanden").with(httpBasic(ALEX, "egal")))
+        .andExpect(status().isNotFound());
+  }
+
+  @Test
+  void aendern_bei_konflikt_liefert_409_mit_alternativen() throws Exception {
+    // alex.berger bucht koeln-r1 für 10:00–11:00.
+    mvc()
+        .perform(
+            post("/api/buchungen")
+                .with(httpBasic(ALEX, "egal"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body("koeln-r1", MORGEN, "10:00", "11:00", "Erstbuchung")))
+        .andExpect(status().isCreated());
+
+    // alex.berger bucht koeln-r2 für denselben Zeitraum.
+    String id =
+        com.jayway.jsonpath.JsonPath.read(
+            mvc()
+                .perform(
+                    post("/api/buchungen")
+                        .with(httpBasic(ALEX, "egal"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(body("koeln-r2", MORGEN, "10:00", "11:00", "Zweitbuchung")))
+                .andReturn()
+                .getResponse()
+                .getContentAsString(),
+            "$.id");
+
+    // Versuch, die zweite Buchung auf koeln-r1 (bereits belegt) umzubuchen -> 409.
+    mvc()
+        .perform(
+            put("/api/buchungen/" + id)
+                .with(httpBasic(ALEX, "egal"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body("koeln-r1", MORGEN, "10:00", "11:00", "Umbuchen")))
+        .andExpect(status().isConflict())
+        .andExpect(jsonPath("$.alternativen").isArray());
+  }
+
+  @Test
+  void buchung_ausserhalb_oeffnungszeiten_liefert_400() throws Exception {
+    // 07:00–08:00 liegt vor Öffnungszeit (08:00) -> UngueltigeEingabe -> HTTP 400.
+    mvc()
+        .perform(
+            post("/api/buchungen")
+                .with(httpBasic(ALEX, "egal"))
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(body("koeln-r3", MORGEN, "07:00", "08:00", "Zu früh")))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  void leere_liste_vor_erster_buchung() throws Exception {
+    // Frische (transaktionale) DB: GET /api/buchungen liefert leere JSON-Liste.
+    mvc()
+        .perform(get("/api/buchungen").with(httpBasic(ALEX, "egal")))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$").isArray())
+        .andExpect(jsonPath("$").isEmpty());
+  }
 }
