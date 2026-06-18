@@ -1,0 +1,92 @@
+name: Frontend CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "frontend/**"
+      - "backend/**"
+      - ".github/workflows/frontend-ci.yml"
+  pull_request:
+    paths:
+      - "frontend/**"
+      - "backend/**"
+      - ".github/workflows/frontend-ci.yml"
+
+jobs:
+  lint-und-build:
+    name: Lint & Typecheck
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Node.js einrichten
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Dependencies installieren
+        working-directory: frontend
+        run: npm ci
+
+      - name: Lint
+        working-directory: frontend
+        run: npm run lint
+
+      - name: Typecheck & Build
+        working-directory: frontend
+        run: npm run build
+
+  e2e:
+    name: E2E-Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Java 21 einrichten
+        uses: actions/setup-java@v4
+        with:
+          java-version: "21"
+          distribution: temurin
+          cache: gradle
+
+      - name: Node.js einrichten
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Frontend-Dependencies installieren
+        working-directory: frontend
+        run: npm ci
+
+      - name: Playwright-Browser und Systemabhängigkeiten installieren
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+
+      - name: Backend starten
+        working-directory: backend
+        run: ./gradlew bootRun &
+
+      - name: Auf Backend warten
+        run: |
+          echo "Warte auf Backend (Port 8081)..."
+          timeout 90 bash -c 'until curl -sf http://localhost:8081/api/hello; do sleep 2; done'
+          echo "Backend bereit."
+
+      - name: E2E-Tests ausführen
+        working-directory: frontend
+        run: npm run test:e2e
+
+      - name: Playwright-Report hochladen
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: frontend/playwright-report/
+          retention-days: 7
