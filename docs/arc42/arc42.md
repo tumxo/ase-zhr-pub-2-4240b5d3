@@ -62,7 +62,7 @@ GL --> Calvin : Sieht Reports
 
 ### Ebene 1: Whitebox Gesamtsystem
 
-Das Calvin-System besteht aus einer Single Page Application (SPA) und einem separaten Booking Service. Diese Architektur wurde für die Prototyping-Phase optimiert und ermöglicht eine klare Trennung zwischen Benutzeroberfläche und Geschäftslogik.
+Das Calvin-System besteht aus einer Single Page Application (SPA) und einem Booking Service. Für den Prototypen werden Stammdaten (Standorte, Räume, Ausstattungen) als Mock-Daten direkt in der SPA verwaltet; ein separater Resource Service ist als technische Schuld für den Produktionsgang vorgesehen (siehe [ADR-002](../architektur/adrs/ADR-002-resource-service-in-spa.md)).
 
 ```plantuml
 @startuml
@@ -89,8 +89,8 @@ spa --> booking : REST API\n(JSON)
 
 | Baustein | Verantwortlichkeit | Quellcode |
 |----------|-------------------|-----------|
-| **SPA** | Benutzeroberfläche für Buchungen, Kalenderansichten und Reports | `frontend/` |
-| **Booking Service** | Buchungslogik, Validierung, Konfliktprüfung, Auswertungsdaten | `backend/` |
+| **SPA** | Benutzeroberfläche für Buchungen, Kalenderansichten und Reports; enthält Stammdaten (Standorte, Räume, Ausstattungen) als Mock-Daten | `frontend/` |
+| **Booking Service** | Buchungslogik, Validierung, Konfliktprüfung; arbeitet mit IDs aus den SPA-Mock-Daten | `backend/` |
 
 ### Schnittstelle: SPA → Booking Service
 
@@ -100,7 +100,13 @@ Die SPA kommuniziert mit dem Booking Service über eine REST API (JSON über HTT
 
 ## Architekturentscheidungen
 
-Architekturentscheidungen sind als Architecture Decision Records (ADR) dokumentiert. Die ADRs findest du unter `docs/arc42/adrs/`.
+Architekturentscheidungen sind als Architecture Decision Records (ADR) dokumentiert. Die ADRs findest du unter `docs/architektur/adrs/`.
+
+| ADR | Entscheidung |
+|-----|-------------|
+| [ADR-001](../architektur/adrs/ADR-001-technologie-stack-fuer-booking-service.md) | Technologie-Stack Booking Service (Java, Spring Boot, H2, jOOQ, Flyway) |
+| [ADR-002](../architektur/adrs/ADR-002-resource-service-in-spa.md) | Resource Service in SPA integriert (Mock-Daten) |
+| [ADR-003](../architektur/adrs/ADR-003-basic-auth-statt-okta.md) | Basic-Auth ohne Passwörter statt Okta für den Prototypen |
 
 ---
 

@@ -9,7 +9,20 @@
         "commit": "",
         "pr": ""
     },
-    "hooks": {},
+    "hooks": {
+        "PostToolUse": [
+            {
+                "matcher": "Write|Edit",
+                "hooks": [
+                    {
+                        "type": "command",
+                        "command": "$CLAUDE_PROJECT_DIR/scripts/format-backend.sh",
+                        "statusMessage": "Formatiere Backend-Java (Spotless)…"
+                    }
+                ]
+            }
+        ]
+    },
     "enableAllProjectMcpServers": true,
     "enabledMcpjsonServers": [
         "context7",

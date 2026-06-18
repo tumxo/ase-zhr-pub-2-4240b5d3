@@ -1,0 +1,97 @@
+plugins {
+	id 'java'
+	id 'org.springframework.boot' version '3.5.0'
+	id 'io.spring.dependency-management' version '1.1.7'
+	id 'com.diffplug.spotless' version '6.25.0'
+	id 'nu.studer.jooq' version '9.0'
+}
+
+// jOOQ-Version an die von Spring Boot 3.5.0 verwaltete Version koppeln, damit
+// der Codegen exakt zur Laufzeit-Bibliothek passt (sonst Inkompatibilitäten).
+ext['jooq.version'] = '3.19.24'
+
+spotless {
+	java {
+		googleJavaFormat()
+		target 'src/**/*.java'
+		// Generierter jOOQ-Code wird nicht formatiert.
+		targetExclude 'build/**/*.java'
+	}
+}
+
+group = 'io.innoq.calvin'
+version = '0.0.1-SNAPSHOT'
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(21)
+	}
+}
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	implementation 'org.springframework.boot:spring-boot-starter-web'
+	implementation 'org.springframework.boot:spring-boot-starter-jooq'
+	implementation 'org.springframework.boot:spring-boot-starter-security'
+	implementation 'org.springframework.boot:spring-boot-starter-validation'
+	implementation 'org.flywaydb:flyway-core'
+	runtimeOnly 'com.h2database:h2'
+
+	// jOOQ-Codegen aus den Flyway-DDL-Skripten (ohne laufende DB) via DDLDatabase.
+	jooqGenerator 'org.jooq:jooq-meta-extensions:3.19.24'
+
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testImplementation 'org.springframework.security:spring-security-test'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+jooq {
+	version = '3.19.24'
+	configurations {
+		main {
+			generateSchemaSourceOnCompilation = true
+			generationTool {
+				logging = org.jooq.meta.jaxb.Logging.WARN
+				generator {
+					database {
+						name = 'org.jooq.meta.extensions.ddl.DDLDatabase'
+						properties {
+							// Schema-Migrationen (ohne Seed) als Quelle des Schemas.
+							property {
+								key = 'scripts'
+								value = 'src/main/resources/db/migration/*.sql'
+							}
+							property {
+								key = 'sort'
+								value = 'flyway'
+							}
+							property {
+								key = 'defaultNameCase'
+								value = 'lower'
+							}
+							property {
+								key = 'unqualifiedSchema'
+								value = 'none'
+							}
+						}
+					}
+					generate {
+						records = true
+						fluentSetters = true
+					}
+					target {
+						packageName = 'io.innoq.calvin.booking.jooq'
+						directory = 'build/generated-src/jooq/main'
+					}
+				}
+			}
+		}
+	}
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
+}

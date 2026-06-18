@@ -1,28 +1,33 @@
-import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
+import { Routes, Route, Navigate, Outlet } from "react-router-dom"
+import { Layout } from "@/components/layout"
+import { BuchenPage } from "@/pages/buchen"
+import { MeineBuchungenPage } from "@/pages/meine-buchungen"
+import { BuchungDetailPage } from "@/pages/buchung-detail"
+import { KalenderPage } from "@/pages/kalender"
+import { StatusPage } from "@/pages/status"
+import { LoginPage } from "@/pages/login"
+import { getBenutzer } from "@/lib/benutzer"
+
+function PrivateRoute() {
+  if (!getBenutzer()) return <Navigate to="/login" replace />
+  return <Outlet />
+}
 
 function App() {
   return (
-    <div className="flex min-h-svh items-center justify-center bg-background p-8">
-      <Card className="w-full max-w-md">
-        <CardHeader>
-          <CardTitle>Calvin</CardTitle>
-          <CardDescription>INNOQ Raumbuchungssystem</CardDescription>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4">
-          <p className="text-sm text-muted-foreground">
-            Du kannst jetzt mit dem Aufbau der UI
-            beginnen.
-          </p>
-        </CardContent>
-      </Card>
-    </div>
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route element={<PrivateRoute />}>
+        <Route element={<Layout />}>
+          <Route path="/" element={<Navigate to="/buchen" replace />} />
+          <Route path="/buchen" element={<BuchenPage />} />
+          <Route path="/buchungen" element={<MeineBuchungenPage />} />
+          <Route path="/buchungen/:id" element={<BuchungDetailPage />} />
+          <Route path="/kalender" element={<KalenderPage />} />
+          <Route path="/status" element={<StatusPage />} />
+        </Route>
+      </Route>
+    </Routes>
   )
 }
 
