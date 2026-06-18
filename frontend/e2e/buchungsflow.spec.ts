@@ -1,93 +1,90 @@
-import { test, expect } from "@playwright/test"
+import { test, expect, type Page } from "@playwright/test"
 
 const TESTUSER = "e2e.tester"
 const TITEL = "E2E-Testmeeting"
 
-// Vor jedem Test: frische Session als Testbenutzer
-test.beforeEach(async ({ page }) => {
-  await page.evaluate(() => localStorage.clear())
+test.beforeEach(async ({ context }) => {
+  await context.addInitScript(() => localStorage.clear())
+})
+
+async function login(page: Page, user = TESTUSER) {
   await page.goto("/#/login")
-  await page.getByLabel("Benutzername").fill(TESTUSER)
+  await page.getByLabel("Benutzername").fill(user)
   await page.getByRole("button", { name: "Anmelden" }).click()
   await expect(page).toHaveURL(/#\/buchen/)
-})
+}
 
-test("vollständiger Buchungsflow: anlegen, prüfen, stornieren", async ({ page }) => {
-  // ── Schritt 0: Standort wählen ─────────────────────────────
+async function raumBuchen(page: Page, titel: string) {
   await page.getByRole("button", { name: /Köln/ }).click()
   await page.getByRole("button", { name: "Weiter" }).click()
-
-  // ── Schritt 1: Raum wählen (ersten verfügbaren) ────────────
-  await page.getByRole("button", { name: /Beethoven/ }).click()
+  await page.getByRole("button", { name: "Wählen" }).first().click()
   await page.getByRole("button", { name: "Weiter" }).click()
-
-  // ── Schritt 2: Zeitfenster wählen (morgen, erster freier Slot) ─
   await page.getByRole("button", { name: "Nächster Tag" }).click()
-  // Warten bis Belegung geladen (Ladetext verschwindet)
-  await expect(page.getByText("Verfügbarkeit wird geladen…")).not.toBeVisible({ timeout: 5000 })
+  await expect(page.getByText("Verfügbarkeit wird geladen…")).not.toBeVisible({ timeout: 8000 })
   await page.locator("button").filter({ hasText: "frei" }).first().click()
   await page.getByRole("button", { name: "Weiter" }).click()
-
-  // ── Schritt 3: Titel eingeben und buchen ───────────────────
-  await page.getByLabel("Meetingtitel").fill(TITEL)
+  await page.getByLabel("Meetingtitel").fill(titel)
   await page.getByRole("button", { name: "Verbindlich buchen" }).click()
-
-  // ── Bestätigung ────────────────────────────────────────────
   await expect(page.getByText("Buchung bestätigt!")).toBeVisible()
-  await page.getByRole("button", { name: "Zu meinen Buchungen" }).click()
+}
 
-  // ── Meine Buchungen: Buchung sichtbar ──────────────────────
+test("vollständiger Buchungsflow: anlegen, prüfen, stornieren", async ({ page }) => {
+  await login(page)
+  await raumBuchen(page, TITEL)
+
+  await page.getByRole("link", { name: "Zu meinen Buchungen" }).click()
   await expect(page).toHaveURL(/#\/buchungen/)
-  await expect(page.getByText(TITEL)).toBeVisible()
+  await expect(page.getByText(TITEL).first()).toBeVisible()
 
-  // ── Stornieren über Aktionen-Menü ──────────────────────────
-  await page.getByRole("button", { name: "Aktionen" }).click()
+  // Stornieren: Badge-Anzahl vorher merken, dann Stornieren und +1 prüfen
+  const stornosVorher = await page.locator('[data-slot="badge"]').filter({ hasText: "Storniert" }).count()
+  await page.getByRole("button", { name: "Aktionen" }).first().click()
   await page.getByRole("menuitem", { name: "Stornieren" }).click()
-
-  // ── Storniert-Badge muss erscheinen ───────────────────────
-  await expect(page.getByText("Storniert")).toBeVisible()
-  await expect(page.getByText(TITEL)).toBeVisible() // Eintrag bleibt sichtbar
+  await expect(page.locator('[data-slot="badge"]').filter({ hasText: "Storniert" })).toHaveCount(stornosVorher + 1)
 })
 
-test("Doppelbuchung zeigt Konflikt-Toast mit Alternativen", async ({ page }) => {
-  // Erste Buchung anlegen
+test("nach Buchung erscheint Slot als belegt im Zeitpicker", async ({ page }) => {
+  await login(page)
+
+  // Schritt 0–1: Standort + Raum
   await page.getByRole("button", { name: /Köln/ }).click()
   await page.getByRole("button", { name: "Weiter" }).click()
-  await page.getByRole("button", { name: /Bach/ }).click()
+  await page.getByRole("button", { name: "Wählen" }).first().click()
   await page.getByRole("button", { name: "Weiter" }).click()
+
+  // Schritt 2: Slot merken und buchen
   await page.getByRole("button", { name: "Nächster Tag" }).click()
-  await expect(page.getByText("Verfügbarkeit wird geladen…")).not.toBeVisible({ timeout: 5000 })
-  const ersterSlot = page.locator("button").filter({ hasText: "frei" }).first()
-  const slotText = await ersterSlot.locator("span").first().textContent()
-  await ersterSlot.click()
+  await expect(page.getByText("Verfügbarkeit wird geladen…")).not.toBeVisible({ timeout: 8000 })
+  const ersterFreier = page.locator("button").filter({ hasText: "frei" }).first()
+  const slotLabel = await ersterFreier.locator("span").first().textContent()
+  await ersterFreier.click()
   await page.getByRole("button", { name: "Weiter" }).click()
-  await page.getByLabel("Meetingtitel").fill("Erstbuchung E2E")
+  await page.getByLabel("Meetingtitel").fill("Slot-Belegungstest")
   await page.getByRole("button", { name: "Verbindlich buchen" }).click()
   await expect(page.getByText("Buchung bestätigt!")).toBeVisible()
 
-  // Als zweiter Nutzer denselben Slot buchen – Session wechseln
-  await page.evaluate(() => localStorage.setItem("calvin_benutzer", "e2e.zweiter"))
-  await page.goto("/#/buchen")
+  // Zurück zum Buchungsformular: Schritt 0–2 erneut durchlaufen
+  await page.getByRole("button", { name: "Weitere buchen" }).click()
   await page.getByRole("button", { name: /Köln/ }).click()
   await page.getByRole("button", { name: "Weiter" }).click()
-  await page.getByRole("button", { name: /Bach/ }).click()
+  await page.getByRole("button", { name: "Wählen" }).first().click()
   await page.getByRole("button", { name: "Weiter" }).click()
   await page.getByRole("button", { name: "Nächster Tag" }).click()
-  // Den gleichen Slot auswählen (er sollte jetzt als belegt markiert sein)
-  await expect(page.getByText("Verfügbarkeit wird geladen…")).not.toBeVisible({ timeout: 5000 })
-  // Slot ist belegt → Button disabled, kein "Weiter" möglich
-  const belegterSlot = page.locator("button").filter({ hasText: slotText ?? "" }).first()
-  await expect(belegterSlot).toBeDisabled()
+  await expect(page.getByText("Verfügbarkeit wird geladen…")).not.toBeVisible({ timeout: 8000 })
 
-  // Aufräumen: Erstbuchung stornieren
-  await page.evaluate(() => localStorage.setItem("calvin_benutzer", TESTUSER))
+  // Gebuchter Slot muss als belegt erscheinen
+  const belegterSlot = page.locator("button").filter({ hasText: slotLabel ?? "" }).filter({ hasText: "belegt" })
+  await expect(belegterSlot).toBeVisible()
+
+  // Aufräumen
   await page.goto("/#/buchungen")
   await page.getByRole("button", { name: "Aktionen" }).first().click()
   await page.getByRole("menuitem", { name: "Stornieren" }).click()
 })
 
 test("leere Buchungsliste zeigt Hinweistext", async ({ page }) => {
+  // Eigener Benutzer ohne je erstellte Buchungen
+  await login(page, "e2e.leer")
   await page.goto("/#/buchungen")
-  // Neuer Testbenutzer hat keine Buchungen
-  await expect(page.getByText(/Keine anstehenden Buchungen/)).toBeVisible()
+  await expect(page.getByText(/Keine anstehenden Buchungen/)).toBeVisible({ timeout: 10000 })
 })

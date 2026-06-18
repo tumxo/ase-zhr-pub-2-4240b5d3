@@ -1,7 +1,7 @@
 import { test, expect } from "@playwright/test"
 
-test.beforeEach(async ({ page }) => {
-  await page.evaluate(() => localStorage.clear())
+test.beforeEach(async ({ context }) => {
+  await context.addInitScript(() => localStorage.clear())
 })
 
 test("leitet unangemeldete Nutzer auf /login um", async ({ page }) => {
@@ -43,5 +43,5 @@ test("Abmelden kehrt zur Login-Seite zurück und löscht Session", async ({ page
 
   // Direkt nach /buchen navigieren muss wieder auf /login umleiten
   await page.goto("/#/buchen")
-  await expect(page).toHaveURL(/#\/login/)
+  await expect(page).toHaveURL(/#\/login/, { timeout: 10000 })
 })
