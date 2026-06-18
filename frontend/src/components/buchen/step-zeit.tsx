@@ -1,11 +1,8 @@
+import { useEffect, useState } from "react"
 import { ChevronLeft, ChevronRight, Check, X } from "lucide-react"
-import {
-  ZEIT_SLOTS,
-  getBelegteSlots,
-  getRaum,
-  naechsterSlot,
-} from "@/lib/mock-data"
+import { ZEIT_SLOTS, getRaum, naechsterSlot } from "@/lib/mock-data"
 import { addTage, formatLang, HEUTE } from "@/lib/datum"
+import { belegung } from "@/lib/api"
 import { Button } from "@/components/ui/button"
 import { cn } from "@/lib/utils"
 
@@ -23,8 +20,44 @@ export function StepZeit({
   onSlot: (slot: string) => void
 }) {
   const raum = getRaum(raumId)
-  const belegt = getBelegteSlots(raumId, datum)
   const istVergangen = datum < HEUTE
+  const aktKey = raumId + datum
+  // Ergebnis pro (Raum, Tag) ablegen, damit beim Wechsel keine veralteten
+  // Belegungen kurz aufblitzen. setState nur in Promise-Callbacks (kein
+  // synchrones setState im Effekt-Body), analog zu pages/status.tsx.
+  const [daten, setDaten] = useState<{ key: string; slots: string[] } | null>(
+    null,
+  )
+
+  // Belegte Zeitfenster des Raums für den gewählten Tag aus dem Backend laden
+  // (CLVN-011). Ein 1h-Slot gilt als belegt, wenn er ein gebuchtes Fenster
+  // überschneidet (Zeiten als "HH:mm" lexikografisch vergleichbar).
+  useEffect(() => {
+    if (istVergangen) return
+    let aktiv = true
+    const key = raumId + datum
+    belegung(raumId, datum)
+      .then((fenster) => {
+        if (!aktiv) return
+        const slots = ZEIT_SLOTS.filter((s) => {
+          const sEnde = naechsterSlot(s)
+          return fenster.some((f) => s < f.ende && sEnde > f.start)
+        })
+        setDaten({ key, slots })
+      })
+      .catch(() => {
+        // Bei Fehler keine Belegung annehmen – Buchungskonflikte fängt das
+        // Backend beim Anlegen erneut ab (409).
+        if (aktiv) setDaten({ key, slots: [] })
+      })
+    return () => {
+      aktiv = false
+    }
+  }, [raumId, datum, istVergangen])
+
+  const geladenFuerAkt = daten?.key === aktKey
+  const belegt = geladenFuerAkt ? daten.slots : []
+  const ladeBelegung = !istVergangen && !geladenFuerAkt
   const ersterFreier = ZEIT_SLOTS.find((s) => !belegt.includes(s))
 
   return (
@@ -77,7 +110,7 @@ export function StepZeit({
                 <button
                   key={s}
                   type="button"
-                  disabled={istBelegt}
+                  disabled={istBelegt || ladeBelegung}
                   onClick={() => onSlot(s)}
                   className={cn(
                     "flex items-center justify-between rounded-lg border px-3 py-2 text-sm transition-colors",
@@ -104,11 +137,17 @@ export function StepZeit({
             })}
           </div>
 
-          {ersterFreier && (
-            <p className="text-xs text-muted-foreground">
-              Tipp: nächstes freies Zeitfenster {ersterFreier} –{" "}
-              {naechsterSlot(ersterFreier)} Uhr.
+          {ladeBelegung ? (
+            <p className="text-xs text-muted-foreground italic">
+              Verfügbarkeit wird geladen…
             </p>
+          ) : (
+            ersterFreier && (
+              <p className="text-xs text-muted-foreground">
+                Tipp: nächstes freies Zeitfenster {ersterFreier} –{" "}
+                {naechsterSlot(ersterFreier)} Uhr.
+              </p>
+            )
           )}
         </>
       )}

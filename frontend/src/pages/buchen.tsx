@@ -1,7 +1,9 @@
 import { useMemo, useState } from "react"
 import { Link } from "react-router-dom"
+import { toast } from "sonner"
 import { CheckCircle2, ChevronLeft, ChevronRight } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { ApiFehler } from "@/lib/api"
 import { Stepper } from "@/components/buchen/stepper"
 import { StepStandort } from "@/components/buchen/step-standort"
 import { StepRaum } from "@/components/buchen/step-raum"
@@ -24,6 +26,7 @@ export function BuchenPage() {
   const [step, setStep] = useState(0)
   const [draft, setDraft] = useState<BuchungsDraft>(LEER)
   const [bestaetigt, setBestaetigt] = useState<Buchung | null>(null)
+  const [absendet, setAbsendet] = useState(false)
 
   const patch = (p: Partial<BuchungsDraft>) =>
     setDraft((d) => ({ ...d, ...p }))
@@ -36,17 +39,36 @@ export function BuchenPage() {
     return false
   }, [step, draft])
 
-  function absenden() {
-    if (!draft.raumId || !draft.slot) return
-    const neu = addBuchung({
-      raumId: draft.raumId,
-      datum: draft.datum,
-      start: draft.slot,
-      ende: naechsterSlot(draft.slot),
-      titel: draft.titel.trim(),
-      notiz: draft.notiz.trim() || undefined,
-    })
-    setBestaetigt(neu)
+  async function absenden() {
+    if (!draft.raumId || !draft.slot || absendet) return
+    setAbsendet(true)
+    try {
+      const neu = await addBuchung({
+        raumId: draft.raumId,
+        datum: draft.datum,
+        start: draft.slot,
+        ende: naechsterSlot(draft.slot),
+        titel: draft.titel.trim(),
+        notiz: draft.notiz.trim() || undefined,
+      })
+      setBestaetigt(neu)
+    } catch (e) {
+      if (e instanceof ApiFehler && e.status === 409) {
+        const alt = e.alternativen?.length
+          ? " Freie Alternativen: " +
+            e.alternativen.map((a) => `${a.start}–${a.ende}`).join(", ")
+          : ""
+        toast.error("Raum bereits belegt", {
+          description: "Bitte wähle ein anderes Zeitfenster." + alt,
+        })
+      } else {
+        toast.error("Buchung fehlgeschlagen", {
+          description: e instanceof Error ? e.message : "Unbekannter Fehler",
+        })
+      }
+    } finally {
+      setAbsendet(false)
+    }
   }
 
   function neustart() {
@@ -135,8 +157,8 @@ export function BuchenPage() {
             Weiter <ChevronRight className="size-4" />
           </Button>
         ) : (
-          <Button onClick={absenden} disabled={!weiterErlaubt}>
-            Verbindlich buchen
+          <Button onClick={absenden} disabled={!weiterErlaubt || absendet}>
+            {absendet ? "Wird gebucht…" : "Verbindlich buchen"}
           </Button>
         )}
       </div>

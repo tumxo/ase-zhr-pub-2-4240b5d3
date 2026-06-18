@@ -78,16 +78,22 @@ function BuchungsZeile({
 }
 
 export function MeineBuchungenPage() {
-  const { buchungen, stornieren } = useBuchungen()
+  const { buchungen, geladen, fehler, stornieren } = useBuchungen()
   const [tab, setTab] = useState<"anstehend" | "vergangen">("anstehend")
 
   const gefiltert = buchungen
     .filter((b) => (tab === "anstehend" ? b.datum >= HEUTE : b.datum < HEUTE))
     .sort((a, b) => (a.datum < b.datum ? -1 : 1))
 
-  function onStorno(b: Buchung) {
-    stornieren(b.id)
-    toast("Buchung storniert", { description: `„${b.titel}" wurde storniert.` })
+  async function onStorno(b: Buchung) {
+    try {
+      await stornieren(b.id)
+      toast("Buchung storniert", { description: `„${b.titel}" wurde storniert.` })
+    } catch (e) {
+      toast.error("Stornieren fehlgeschlagen", {
+        description: e instanceof Error ? e.message : "Unbekannter Fehler",
+      })
+    }
   }
 
   return (
@@ -118,11 +124,23 @@ export function MeineBuchungenPage() {
         ))}
       </div>
 
+      {fehler && (
+        <div className="rounded-lg border border-destructive/50 p-4 text-sm text-destructive">
+          Buchungen konnten nicht geladen werden: {fehler}
+        </div>
+      )}
+
       <div className="divide-y rounded-lg border">
-        {gefiltert.map((b) => (
-          <BuchungsZeile key={b.id} b={b} onStorno={onStorno} />
-        ))}
-        {gefiltert.length === 0 && (
+        {!geladen && (
+          <div className="p-10 text-center text-sm text-muted-foreground italic">
+            Buchungen werden geladen…
+          </div>
+        )}
+        {geladen &&
+          gefiltert.map((b) => (
+            <BuchungsZeile key={b.id} b={b} onStorno={onStorno} />
+          ))}
+        {geladen && gefiltert.length === 0 && (
           <div className="p-10 text-center text-sm text-muted-foreground">
             Keine {tab === "anstehend" ? "anstehenden" : "vergangenen"}{" "}
             Buchungen.

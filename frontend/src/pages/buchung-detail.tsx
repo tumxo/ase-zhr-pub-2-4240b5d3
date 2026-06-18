@@ -10,8 +10,16 @@ import { Badge } from "@/components/ui/badge"
 export function BuchungDetailPage() {
   const { id } = useParams()
   const navigate = useNavigate()
-  const { getBuchung, stornieren } = useBuchungen()
+  const { getBuchung, stornieren, geladen } = useBuchungen()
   const buchung = id ? getBuchung(id) : undefined
+
+  if (!geladen) {
+    return (
+      <div className="mx-auto max-w-2xl p-10 text-center text-sm text-muted-foreground italic">
+        Buchung wird geladen…
+      </div>
+    )
+  }
 
   if (!buchung) {
     return (
@@ -94,12 +102,18 @@ export function BuchungDetailPage() {
         <Button
           variant="destructive"
           disabled={storniert}
-          onClick={() => {
-            stornieren(buchung.id)
-            toast("Buchung storniert", {
-              description: `„${buchung.titel}" wurde storniert.`,
-            })
-            navigate("/buchungen")
+          onClick={async () => {
+            try {
+              await stornieren(buchung.id)
+              toast("Buchung storniert", {
+                description: `„${buchung.titel}" wurde storniert.`,
+              })
+              navigate("/buchungen")
+            } catch (e) {
+              toast.error("Stornieren fehlgeschlagen", {
+                description: e instanceof Error ? e.message : "Unbekannter Fehler",
+              })
+            }
           }}
         >
           <CalendarX className="size-4" /> Stornieren
