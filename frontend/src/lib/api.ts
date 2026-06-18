@@ -2,6 +2,7 @@
 // Die einzige Stelle im Frontend, die das echte Backend anspricht (neben
 // pages/status.tsx). Alle anderen Stammdaten bleiben gemockt (ADR-002).
 import type { Buchung } from "@/lib/mock-data"
+import { getBenutzer } from "@/lib/benutzer"
 
 // Backend-Basis-URL zur Laufzeit aus window.location ableiten.
 // Hinter dem Crucible-Proxy ist die Seite unter .../proxy/5173/... erreichbar;
@@ -16,13 +17,10 @@ export function backendBaseUrl(): string {
   return "http://localhost:8081"
 }
 
-// Passwortlose Basic-Auth (ADR-003): der Benutzername identifiziert den
-// Mitarbeiter, das Passwort ignoriert das Backend. Im Prototyp fix die Persona
-// Alex Berger; produktiv später OAuth2/OIDC (Okta).
-const BENUTZER = "alex.berger"
-
+// Passwortlose Basic-Auth (ADR-003): Benutzername aus localStorage, Passwort ignoriert.
 function authHeader(): string {
-  return "Basic " + btoa(`${BENUTZER}:x`)
+  const benutzer = getBenutzer() ?? "anonym"
+  return "Basic " + btoa(`${benutzer}:x`)
 }
 
 export interface NeueBuchungRequest {

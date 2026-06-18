@@ -1,5 +1,5 @@
-import { NavLink, useLocation } from "react-router-dom"
-import { Building2, CalendarPlus, CalendarCheck, CalendarDays, Activity } from "lucide-react"
+import { NavLink, useLocation, useNavigate } from "react-router-dom"
+import { Building2, CalendarPlus, CalendarCheck, CalendarDays, Activity, LogOut } from "lucide-react"
 import {
   Sidebar,
   SidebarContent,
@@ -12,7 +12,9 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/theme-toggle"
+import { getBenutzer, removeBenutzer, initialen } from "@/lib/benutzer"
 
 const NAV_ITEMS = [
   { title: "Buchen", url: "/buchen", icon: CalendarPlus },
@@ -23,6 +25,13 @@ const NAV_ITEMS = [
 
 export function AppSidebar() {
   const { pathname } = useLocation()
+  const navigate = useNavigate()
+  const benutzer = getBenutzer() ?? ""
+
+  function abmelden() {
+    removeBenutzer()
+    navigate("/login", { replace: true })
+  }
 
   return (
     <Sidebar>
@@ -66,12 +75,14 @@ export function AppSidebar() {
         <ThemeToggle />
         <div className="flex items-center gap-2 px-2 py-1.5">
           <Avatar className="size-8">
-            <AvatarFallback>AB</AvatarFallback>
+            <AvatarFallback>{initialen(benutzer)}</AvatarFallback>
           </Avatar>
-          <div className="leading-tight">
-            <div className="text-sm font-medium">Alex Berger</div>
-            <div className="text-xs text-muted-foreground">Senior Consultant</div>
+          <div className="min-w-0 flex-1 leading-tight">
+            <div className="truncate text-sm font-medium">{benutzer}</div>
           </div>
+          <Button variant="ghost" size="icon" className="size-7 shrink-0" onClick={abmelden} title="Abmelden">
+            <LogOut className="size-4" />
+          </Button>
         </div>
       </SidebarFooter>
     </Sidebar>
